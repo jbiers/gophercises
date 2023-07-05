@@ -20,6 +20,9 @@ var score gameScore
 
 var reader *bufio.Reader
 
+var timeTerminated chan int
+var questionsTerminated chan int
+
 func initializeScore(numProblems int) {
 	score = gameScore{
 		correctAnswers:  0,
@@ -56,6 +59,8 @@ func questionsLoop(problems [][]string) {
 		askQuestion(question, result)
 
 	}
+
+	questionsTerminated <- 1
 }
 
 func askQuestion(q string, a string) {
@@ -80,6 +85,18 @@ func askQuestion(q string, a string) {
 	}
 }
 
+func countTime(s time.Duration) {
+	startTime := time.Now()
+
+	for {
+		if time.Since(startTime) > time.Second*s {
+			break
+		}
+	}
+
+	timeTerminated <- 1
+}
+
 func showResults() {
 	fmt.Printf("Results:\n")
 	fmt.Printf("Wrong answers: %v\n", score.wrongAnswers)
@@ -89,19 +106,23 @@ func showResults() {
 
 func main() {
 	filename := flag.String("file", "problems.csv", "name of the problem set file")
+	timeLimit := flag.Int("time", 30, "time limit to answer the questions, in seconds")
+
 	flag.Parse()
 
 	problems := loadProblems(*filename)
 	initializeScore(len(problems))
 
-	startTime := time.Now()
-	go questionsLoop(problems)
+	timeTerminated, questionsTerminated = make(chan int), make(chan int)
 
-	for {
-		if time.Since(startTime) > time.Second*3 {
-			fmt.Printf("\n\nThe time is over :(\n\n")
-			break
-		}
+	go questionsLoop(problems)
+	go countTime(time.Duration(*timeLimit))
+
+	select {
+	case _ = <-timeTerminated:
+		fmt.Printf("\nSorry, you ran out of time.\n\n")
+	case _ = <-questionsTerminated:
+		fmt.Printf("\nYou finished the quiz\n\n")
 	}
 
 	showResults()
