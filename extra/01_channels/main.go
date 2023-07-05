@@ -3,13 +3,13 @@ package main
 import "fmt"
 
 func main() {
-	c := make(chan int)
+	oneChannel := make(chan int)
 
 	go func() {
-		c <- 234
+		oneChannel <- 234
 	}()
 
-	num := <-c
+	num := <-oneChannel
 
 	fmt.Println(num)
 }
